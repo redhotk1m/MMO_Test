@@ -44,7 +44,6 @@ public class GameServer extends Thread {
 
     private void parsePacket(byte[] data, InetAddress address, int port) {
         String message = new String(data).trim(); //Dette er hele strengen som blir mottat
-        System.out.println("Parsing message: " + message);
         Packet.PacketTypes type = Packet.lookupPacket(message.substring(0,2));
         Packet packet;
         switch (type){
@@ -121,6 +120,14 @@ public class GameServer extends Thread {
             index++;
         }
         return index;
+    }
+
+    private void handleValidLogin(){
+
+    }
+
+    private void sendPlayerInfo(){
+        
     }
 
     public void addConnection(PlayerMP player, Packet00Login packet2) {

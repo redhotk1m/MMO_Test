@@ -44,7 +44,7 @@ public class Packet03ValidationLogin extends Packet{
             return ("03" + this.username + "," + this.password + "," + this.valid_login).getBytes();
         }
 
-        public boolean isValid(){
+        public boolean loginAccepted(){
             return (valid_login == 1);
         }
 

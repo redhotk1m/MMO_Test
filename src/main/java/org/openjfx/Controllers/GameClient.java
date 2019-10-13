@@ -1,12 +1,11 @@
 package org.openjfx.Controllers;
 
 import javafx.application.Platform;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.stage.Stage;
+import org.openjfx.ChangeScene;
 import org.openjfx.Exceptions.CannotFindHostException;
 import org.openjfx.Packets.*;
+import org.openjfx.PlatformHelper;
 import org.openjfx.PlayerMP;
 
 import java.io.IOException;
@@ -17,28 +16,35 @@ public class GameClient extends Thread {
     private InetAddress ipAddress;
     private DatagramSocket socket;
     private FXMLController controller;
-    private boolean login_accepted = false;
     public GameController gameController;
-    PlayerMP mainPlayer;
+    private String usernameInput, passwordInput;
 
-    GameClient(FXMLController controller, String ipAddress){
+    GameClient(FXMLController controller, String ipAddress, String usernameInput, String passwordInput){
         this.controller = controller;
-        System.out.println("SOCKETCLIENT STARTED");
+        this.usernameInput = usernameInput;
+        this.passwordInput = passwordInput;
+        byte[] data = new byte[1024];
+        DatagramPacket packet = new DatagramPacket(data, data.length);
         try {
             this.socket = new DatagramSocket();
             this.ipAddress = InetAddress.getByName(ipAddress);
-        } catch (SocketException e) {
-            e.printStackTrace();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
+            sendLoginPacket();
+            receiveResponseFromServer(0,packet);
+        } catch (SocketException | UnknownHostException | CannotFindHostException e) {
+            new Popup(e.getMessage());
         }
+    }
+
+    private void sendLoginPacket() {
+        Packet03ValidationLogin packet03ValidationLogin = new Packet03ValidationLogin(usernameInput,passwordInput);
+        packet03ValidationLogin.writeData(this);//Sender brukernavn / passord til server og spør om innlogging
+        //Nå må vi motta godkjennelse fra serveren før vi fortsetter her
     }
 
     @Override
     public void run() {
-        System.out.println("RUN METHOD STARTED");
         try {
-            socket.setSoTimeout(0);
+            socket.setSoTimeout(0); //Setter socket timeout til evig
             while (true){
                 byte[] data = new byte[1024];
                 DatagramPacket packet = new DatagramPacket(data, data.length);
@@ -50,16 +56,19 @@ public class GameClient extends Thread {
         }
     }
 
-    public void loginAccepted() throws CannotFindHostException {
-            byte[] data = new byte[1024];
-            DatagramPacket packet = new DatagramPacket(data, data.length);
+    public int receiveResponseFromServer(int numberOfAttempts, DatagramPacket packet) throws CannotFindHostException {
             try {
-                socket.setSoTimeout(4000);
-                socket.receive(packet);
+                socket.setSoTimeout(1000); //Setter socket timeout til å kaste exception dersom den ikke får en packet innen 1sek
+                socket.receive(packet); //Mottar en packet fra server som inneholder informasjon om login var vellykket eller ei
                 this.parsePacket(packet.getData(), packet.getAddress(), packet.getPort());
             } catch (Exception e) {
-                throw new CannotFindHostException("Can't connect to server",e);
+                if (numberOfAttempts < 4){
+                    return receiveResponseFromServer(++numberOfAttempts, packet); //Får ikke klient svar fra server innen 1 sek, prøver den igjen. Totalt 5 ganger før den gir opp og sier at server ikke er tilgjengelig
+                }else{
+                    throw new CannotFindHostException("Cannot connect to server", e);
+                }
             }
+            return 0;
     }
 
     public void sendData(byte[] data){
@@ -85,7 +94,7 @@ public class GameClient extends Thread {
                 break;
             case DISCONNECT:
                 packet = new Packet01Disconnect(data);
-                System.out.println("[" + address.getHostAddress() + ":" + port + "] " + ((Packet01Disconnect)packet).getUsername()+ " has LEFT the world... received packet from client(s)");
+                handleDisconnect((Packet01Disconnect) packet,address,port);
                 break;
             case MOVE:
                 packet = new Packet02Move(data);
@@ -105,8 +114,12 @@ public class GameClient extends Thread {
         }
     }
 
+    private void handleDisconnect(Packet01Disconnect packet, InetAddress address, int port) {
+        System.out.println("[" + address.getHostAddress() + ":" + port + "] " + ((Packet01Disconnect)packet).getUsername()+ " has LEFT the world... received packet from client(s)");
+    }
+
     private void handleMove(Packet02Move packet){
-        //movePlayers inne i game klassen
+        //kaller på movePlayers i game klassen, som oppdaterer alle posisjonene til hver spiller i et arraylist (av alle som er pålogget / vises på skjerm)
         Game.game.movePlayer(packet.getUsername(),packet.getX(),packet.getY());
     }
 
@@ -114,17 +127,16 @@ public class GameClient extends Thread {
         System.out.println("[" + address.getHostAddress() + ":" + port + "] " + packet.getUsername()+ " has joined the game... loginpacket recieved");
         PlayerMP player = new PlayerMP(packet.getUsername(),packet.getX(),packet.getY(),address,port);
         Game.players.add(player);
-        Platform.runLater(() -> player.addNodes(gameController));
-                //gameController.getAnchorPane().getChildren().add(
-                //player.getImageView()));
-        //Finn en måte å legge playeren til i anchorpanet...
+        Platform.runLater(() -> player.addNodes(gameController)); //Når det er mulig, vis nye spiller på skjerm
+        //Bør kanskje endres til level.addEntity(player), hvor addEntity bruker player.addNodes(gameController)
+        //Evenetuelt så blir level klassen gameController? Mulig å få dette til å fungere? 1 kontroller for alle level/maps (ikke 1 kontroller per level)
     }
 
     public void handleValidLogin(Packet03ValidationLogin packet, InetAddress address, int port){
-        login_accepted = packet.isValid();
-            if (login_accepted) {
+            if (packet.loginAccepted()) {
                 Stage stage = (Stage) controller.passwordField.getParent().getScene().getWindow();
-                this.gameController = gotoGame(stage);
+                ChangeScene sceneChanger = new ChangeScene<GameController>(stage,"test.fxml");
+                this.gameController = (GameController) sceneChanger.getController();
                 gameController.setSocketClient(this);
                 gameController.setStage(stage);
                 this.start(); //Ny tråd som venter på packets
@@ -133,28 +145,12 @@ public class GameClient extends Thread {
             }
     }
 
-    public GameController gotoGame(Stage stage){
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("../test.fxml"));
-        try {
-            Parent root = loader.load();
-            Scene scene = new Scene(root);
-            stage.setScene(scene);
-            stage.setTitle("GAME");
-            stage.show();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return loader.getController();
-    }
-    private void requestPlayerInfo(){
-
-    }
-
     private void handlePlayerInfo(Packet04PlayerInfo packet, InetAddress address, int port){
         PlayerMP mainPlayer = new PlayerMP(packet.getUsername(),packet.getX(),packet.getY(),address,port);
         Game.game.setMainPlayer(mainPlayer);
-        Platform.runLater(() -> {
+        PlatformHelper.run(() -> gameController.anchorPane.getChildren().addAll(mainPlayer.getVbox()));
+        /*Platform.runLater(() -> {
             gameController.anchorPane.getChildren().addAll(mainPlayer.getVbox());
-        });
+        });*/
     }
 }

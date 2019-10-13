@@ -1,5 +1,6 @@
 package org.openjfx.Packets;
 
+import org.openjfx.Controllers.Game;
 import org.openjfx.Controllers.GameClient;
 import org.openjfx.Controllers.GameServer;
 

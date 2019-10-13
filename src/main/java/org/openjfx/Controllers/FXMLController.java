@@ -24,12 +24,19 @@ public class FXMLController {
     private Label label;
     @FXML
     private Button clientButton, serverButton;
+    @FXML
+    TextField usernameTextField;
+    @FXML
+    PasswordField passwordField;
     public static String usernameText, passwordText;
     public static FXMLController controller;
     private GameClient socketClient;
     private GameServer socketServer;
 
-    String navn = "Client 2";
+    public void initialize() {
+        controller = this;
+    }
+
     @FXML
     private void logIn(ActionEvent event) {
         if (!checkValidUsernamePass()){
@@ -37,44 +44,7 @@ public class FXMLController {
         }
         else {
             launchClient();
-            //PlayerMP player = new PlayerMP(usernameTextField.getText(), null, -1, 500, 10);
-            Packet03ValidationLogin packet03ValidationLogin = new Packet03ValidationLogin(usernameTextField.getText(), passwordField.getText());
-            //Nå må vi motta godkjennelse fra serveren før vi fortsetter her
-            packet03ValidationLogin.writeData(socketClient);
-            try {
-                socketClient.loginAccepted();
-            } catch (CannotFindHostException e) {
-                new Popup("Cannot connect to server");
-            }
-            /*try {
-                if (socketClient.loginAccepted()) {
-                    socketClient.start();
-                    //Ny tråd som venter på packets
-                    Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-                    GameController gameController = gotoGame(stage);
-                    gameController.transferMessage(socketClient);
-                    //gameController.transferMessage(player, socketServer, socketClient);
-                }else {
-                    new Popup("Wrong username / password");
-                }
-            } catch (CannotFindHostException e) {
-                new Popup("Cannot connect to server");
-            }*/
         }
-    }
-
-    private GameController gotoGame(Stage stage){
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("../test.fxml"));
-        try {
-            Parent root = loader.load();
-            Scene scene = new Scene(root);
-            stage.setScene(scene);
-            stage.setTitle("GAME");
-            stage.show();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return loader.getController();
     }
 
     private boolean checkValidUsernamePass(){
@@ -85,47 +55,30 @@ public class FXMLController {
 
     @FXML
     private void exit(ActionEvent event) { //Blir tilkalt ved exit knappen, navn her fungerer ikke. Bør være finne ID til personen innlogget, og sende den packeten istedenfor.
-        Packet01Disconnect packet = new Packet01Disconnect(navn);
+        Packet01Disconnect packet = new Packet01Disconnect("");
         packet.writeData(this.socketClient);
     }
 
     private void launchClient(){
         label.setText("Client");
-        socketClient = new GameClient(this,"localhost");
+        socketClient = new GameClient(this,"localhost", usernameTextField.getText(), passwordField.getText());
+        //Packet03ValidationLogin packet03ValidationLogin = new Packet03ValidationLogin(usernameTextField.getText(), passwordField.getText());
+        //Nå må vi motta godkjennelse fra serveren før vi fortsetter her
+        //packet03ValidationLogin.writeData(socketClient);
+        //try {
+        //    socketClient.receiveResponseFromServer();
+        //} catch (CannotFindHostException e) {
+        //    new Popup(e.getMessage());
+        //}
     }
 
     @FXML
     private void launchServer(ActionEvent event) {
         label.setText("Server");
+        //clientButton.setDisable(true);
+        serverButton.setDisable(true);
         socketServer = new GameServer(this);
         socketServer.start();
-    }
-
-    @FXML
-    TextField usernameTextField;
-    @FXML
-    PasswordField passwordField;
-    //public static FXMLController controller;
-    public void initialize() {
-        System.out.println("init method in controller");
-        controller = this;
-    }
-
-    AnimationTimer a = new AnimationTimer() {
-        @Override
-        public void handle(long l) {
-            usernameText = usernameTextField.getText();
-            System.out.println(usernameTextField.getText());
-            //System.out.println(ball2.getCenterX());
-        }
-    };
-
-    public GameClient getSocketClient() {
-        return socketClient;
-    }
-
-    public GameServer getSocketServer() {
-        return socketServer;
     }
 
     @FXML
@@ -139,6 +92,14 @@ public class FXMLController {
         System.out.println("DISPLAYING ALL USERS!");
         SQLite sqLite = new SQLite();
         sqLite.displayUsers();
+    }
+
+    public GameClient getSocketClient() {
+        return socketClient;
+    }
+
+    public GameServer getSocketServer() {
+        return socketServer;
     }
 
 }
