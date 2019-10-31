@@ -1,5 +1,6 @@
 package org.openjfx.Controllers;
 
+import javafx.stage.Stage;
 import org.openjfx.Packets.*;
 import org.openjfx.PlayerMP;
 
@@ -25,6 +26,34 @@ public class GameServer extends Thread {
         } catch (SocketException e) {
             e.printStackTrace();
         }
+        Stage stage = (Stage) controller.passwordField.getParent().getScene().getWindow();
+        stage.setOnCloseRequest(windowEvent -> sendDisconnectPacket());
+        new Thread(this::sendAlivePacket).start();
+    }
+
+    private void sendDisconnectPacket() {
+        Packet15ServerShutdown packet;
+        for (PlayerMP playerMP : connectedPlayers){
+            packet = new Packet15ServerShutdown();
+            sendData(packet.getData(),playerMP.ipAddress,playerMP.port);
+        }
+        System.exit(0);
+    }
+
+    private void sendAlivePacket(){
+        Packet16IsAlive packet;
+        while (true) {
+            for (PlayerMP playerMP : connectedPlayers) {
+                packet = new Packet16IsAlive();
+                sendData(packet.getData(), playerMP.ipAddress, playerMP.port);
+                System.out.println("sender alive packet!");
+            }
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
@@ -44,6 +73,8 @@ public class GameServer extends Thread {
 
     private void parsePacket(byte[] data, InetAddress address, int port) {
         String message = new String(data).trim(); //Dette er hele strengen som blir mottat
+        System.out.println(message + " packetdata mottatt");
+        SQLite sqLite;
         Packet.PacketTypes type = Packet.lookupPacket(message.substring(0,2));
         Packet packet;
         switch (type){
@@ -51,53 +82,77 @@ public class GameServer extends Thread {
             case INVALID:
                 break;
             case LOGIN:
-                //packet = new Packet00Login(data);
-                //System.out.println("[" + address.getHostAddress() + ":" + port + "] " + ((Packet00Login)packet).getUsername()+ " has connected... received packet from client(s)");
+                packet = new Packet10Login(data);
+                System.out.println("[" + address.getHostAddress() + ":" + port + "] " + ((Packet10Login)packet).getUsername()+ " has connected... received packet from client(s)");
                 break;
             case DISCONNECT:
-                packet = new Packet01Disconnect(data);
-                System.out.println("[" + address.getHostAddress() + ":" + port + "] " + ((Packet01Disconnect)packet).getUsername()+ " has LEFT... received packet from client(s)");
-                this.removeConnection((Packet01Disconnect)packet);
+                packet = new Packet11Disconnect(data);
+                System.out.println("[" + address.getHostAddress() + ":" + port + "] " + ((Packet11Disconnect)packet).getUsername()+ " has LEFT... received packet from client(s)");
+                this.removeConnection((Packet11Disconnect)packet);
                 break;
             case MOVE:
-                packet = new Packet02Move(data);
-                handleMove((Packet02Move) packet);
+                packet = new Packet12Move(data);
+                handleMove((Packet12Move) packet);
                 break;
             case PLAYER_INFO:
-                packet = new Packet04PlayerInfo(data);
+                packet = new Packet14PlayerInfo(data);
                 //Server får info om en spiller, som skal sendes videre ut til alle andre spillere
                 break;
             case VALID_LOGIN:
-                SQLite sqLite = new SQLite();
-                packet = new Packet03ValidationLogin(data);
-                if (sqLite.getUser(
-                        ((Packet03ValidationLogin) packet).getUsername(),
-                        ((Packet03ValidationLogin) packet).getPassword())) {
+                sqLite = new SQLite();
+                packet = new Packet13ValidationLogin(data);
+                if (sqLite.getUser
+                        (((Packet13ValidationLogin) packet).getUsername(),
+                        ((Packet13ValidationLogin) packet).getPassword())){
                     System.out.println("Stemmer, var riktig brukernavn og passord");
-                    System.out.println("[" + address.getHostAddress() + ":" + port + "] " + ((Packet03ValidationLogin)packet).getUsername()+ " has connected... received packet from client(s)");
+                    System.out.println("[" + address.getHostAddress() + ":" + port + "] " + ((Packet13ValidationLogin)packet).getUsername()+ " has connected... received packet from client(s)");
                     //Sender logindata til personen som logget inn (skal brukes til bekreftelse av innlogging
                     //X og Y her må hentes fra sql, og må lagres der i disconnect packeten
-                    PlayerMP player = sqLite.loadUser(((Packet03ValidationLogin) packet).getUsername());
-                    player.setIpAddress(address);
-                    player.setPort(port);
+                    //player.setIpAddress(address);
+                    //player.setPort(port);
                     //PlayerMP player = new PlayerMP(((Packet03ValidationLogin)packet).getUsername(), 50, 10, address, port);
-                    ((Packet03ValidationLogin) packet).setValid_login(1);
+                    ((Packet13ValidationLogin) packet).setValid_login(1);
                     sendData(packet.getData(),address,port);
-                    packet = new Packet04PlayerInfo(((Packet03ValidationLogin) packet).getUsername(), player.x,player.y);
+                    PlayerMP player = sqLite.loadUser(((Packet13ValidationLogin) packet).getUsername(),address,port);
+                    packet = new Packet14PlayerInfo(((Packet13ValidationLogin) packet).getUsername(), player.x,player.y);
                     //Under må også har riktige verdier for x / y ved bruk av databasen
                     sendData(packet.getData(),address,port);
-                    packet = new Packet00Login(((Packet04PlayerInfo) packet).getUsername(), player.x,player.y);
-                    this.addConnection(player, (Packet00Login) packet);
+                    packet = new Packet10Login(((Packet14PlayerInfo) packet).getUsername(), player.x,player.y);
+                    this.addConnection(player, (Packet10Login) packet);
                 }
                 else {
-                    packet = new Packet03ValidationLogin(((Packet03ValidationLogin) packet).getUsername(), ((Packet03ValidationLogin) packet).getPassword(),0);
+                    packet = new Packet13ValidationLogin("","",0);
                     sendData(packet.getData(),address,port);
                 }
-
+                break;
+            case CREATE_ACCOUNT:
+                packet = new Packet17CreateAccount(data);
+                handleCreateAccount((Packet17CreateAccount) packet, address, port);
+                break;
         }
     }
 
-    public void removeConnection(Packet01Disconnect packet) {
+    private void handleCreateAccount(Packet17CreateAccount packet, InetAddress address, int port) {
+        SQLite sqLite = new SQLite();
+        if (!sqLite.userExists(packet.getUsername())) {
+            //Bør legge til sjekk for å sjekke at sqLite.userExists også sjekker at brukernavnet er likt? Kanskje ikke
+            sqLite.addUser(packet.getUsername(), packet.getPassword());
+            System.out.println("server created user:" + packet.getUsername() + " with password: " + packet.getPassword());
+            packet = new Packet17CreateAccount(packet.getUsername(),"1");
+            sendData(packet.getData(),address,port);
+        }
+        else {
+            System.out.println("Server cannot create user, sends response to client");
+            packet = new Packet17CreateAccount(packet.getUsername(),"0");
+            //System.out.println(packet.getPassword() + "pass");
+            //System.out.println(packet.getData());
+            sendData(packet.getData(),address,port);
+            //System.out.println(packet.getData() + "\n" +address + "\n" + port + "\n" + packet.getPassword());
+        }
+
+    }
+
+    public void removeConnection(Packet11Disconnect packet) {
         this.connectedPlayers.remove(getPlayerMPIndex(packet.getUsername()));
         packet.writeData(this);
     }
@@ -130,10 +185,10 @@ public class GameServer extends Thread {
         
     }
 
-    public void addConnection(PlayerMP player, Packet00Login packet2) {
+    public void addConnection(PlayerMP player, Packet10Login packet2) {
         boolean alreadyConnected = false;
         for (PlayerMP p : this.connectedPlayers){
-            Packet00Login packet = packet2; //FIKS
+            Packet10Login packet = packet2; //FIKS
             if (player.getUsername().equalsIgnoreCase(p.getUsername())){
                 if (p.ipAddress == null) {
                     p.ipAddress = player.ipAddress;
@@ -145,7 +200,7 @@ public class GameServer extends Thread {
             }else{
                 //Sender denne clienten til alle clients som allerede er connecta
                 sendData(packet.getData(), p.ipAddress, p.port);
-                packet = new Packet00Login(p.getUsername(),p.x, p.y);
+                packet = new Packet10Login(p.getUsername(),p.x, p.y);
                 //Sender alle clients som er connecta, til den clienten som connecta nå!
                 sendData(packet.getData(), player.ipAddress, player.port);
             }
@@ -172,12 +227,28 @@ public class GameServer extends Thread {
         }
     }
 
-    private void handleMove(Packet02Move packet){
+    private void handleMove(Packet12Move packet){
         if (getPlayerMP(packet.getUsername()) != null){
             int index = getPlayerMPIndex(packet.getUsername());
-            this.connectedPlayers.get(index).x = packet.getX();
-            this.connectedPlayers.get(index).y = packet.getY();
+            PlayerMP player = this.connectedPlayers.get(index);
+            if (!validMove(player.x,packet.getX())){
+                packet.setX(player.x);
+            }else{
+                this.connectedPlayers.get(index).x = packet.getX();
+            }
+            if (!validMove(player.y, packet.getY())){
+                System.out.println("NÅ BLIR DENNE KALT!" + player.y + " " + packet.getY());
+                packet.setY(player.y);
+            }else{
+                this.connectedPlayers.get(index).y = packet.getY();
+            }
+
+            //this.connectedPlayers.get(index).x = packet.getX();
+            //this.connectedPlayers.get(index).y = packet.getY();
             packet.writeData(this);
         }
+    }
+    private boolean validMove(int before, int after){
+        return Math.abs(before - after) <= Math.abs(5) || before == after;
     }
 }

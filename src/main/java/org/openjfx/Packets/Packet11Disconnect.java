@@ -3,23 +3,28 @@ package org.openjfx.Packets;
 import org.openjfx.Controllers.GameClient;
 import org.openjfx.Controllers.GameServer;
 
-public class Packet01Disconnect extends Packet {
+public class Packet11Disconnect extends Packet {
 
     private String username;
 
-    public Packet01Disconnect(byte[] data){
-        super(01);
+    public Packet11Disconnect(byte[] data){
+        super(11);
         this.username = readData(data);
     }
 
-    public Packet01Disconnect(String username){
-        super(01);
+    public Packet11Disconnect(String username){
+        super(11);
         this.username = username;
     }
 
     @Override
     public void writeData(GameClient client) {
-        client.sendData(getData());
+        client.sendData(getData(),false);
+    }
+
+    @Override
+    public void writeData(GameClient client, boolean needsAck) {
+        client.sendData(getData(),true);
     }
 
     @Override
@@ -29,7 +34,7 @@ public class Packet01Disconnect extends Packet {
 
     @Override
     public byte[] getData() {
-        return ("01" + this.username).getBytes();
+        return ("11" + this.username).getBytes();
     }
 
     public String getUsername(){

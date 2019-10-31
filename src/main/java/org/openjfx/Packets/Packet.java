@@ -7,7 +7,16 @@ import org.openjfx.Controllers.GameServer;
 public abstract class Packet {
 
     public static enum PacketTypes {
-        INVALID(-1), LOGIN(00), DISCONNECT(01), MOVE(02),VALID_LOGIN(03), PLAYER_INFO(04);
+        INVALID(-1),
+        LOGIN(10),
+        DISCONNECT(11),
+        MOVE(12),
+        VALID_LOGIN(13),
+        PLAYER_INFO(14),
+        SERVER_DISCONNECT(15),
+        SERVER_ALIVE(16),
+        CREATE_ACCOUNT(17),
+        CONNECT_TO_SERVER(18);
 
         private int packetId;
         private PacketTypes(int packetId) {
@@ -28,9 +37,17 @@ public abstract class Packet {
     //Sends to server from client
     public abstract void writeData(GameClient client);
 
+    //Sends to server from client, waits for ack
+    public abstract void writeData(GameClient client, boolean needsAck);
+
+
 
     //Sends to all clients within server
     public abstract void writeData(GameServer server);
+
+    //Sends to all clients within server, wait for ack
+
+    //TODO Create method with ack for server
 
     public String readData(byte[] data){
         String message = new String(data).trim();

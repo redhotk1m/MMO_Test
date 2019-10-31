@@ -1,6 +1,8 @@
 package org.openjfx.Controllers;
 
 import javafx.animation.AnimationTimer;
+import javafx.util.Duration;
+import org.openjfx.Animation.SpriteAnimation;
 import org.openjfx.PlatformHelper;
 import org.openjfx.PlayerMP;
 
@@ -10,9 +12,11 @@ public class Game {
 
     public static Game game;
     public PlayerMP mainPlayer;
+    public GameClient socketClient;
     public void setMainPlayer(PlayerMP mainPlayer) {
         this.mainPlayer = mainPlayer;
-        players.add(mainPlayer);
+        mainPlayer.setMainPlayerUnderline(true);
+        getPlayers().add(mainPlayer);
         gameLoop.start();
     }
 
@@ -21,6 +25,7 @@ public class Game {
     Game(GameController gameController, GameClient socketClient){
         game = this;
         this.gameController = gameController;
+        this.socketClient = socketClient;
     }
 
 
@@ -33,20 +38,28 @@ public class Game {
         }
     };
 
+    public synchronized ArrayList<PlayerMP> getPlayers(){
+        return players;
+    }
 
 
 
-    public void movePlayer(String username, int x, int y){
+
+    public void movePlayer(String username, int x, int y, int direction, int idle){
         int index = getPlayerMPIndex(username);
-        players.get(index).setX(x);
-        players.get(index).setY(y);
+        PlayerMP player = getPlayers().get(index);
+        player.setDirection(direction);
+        player.setIdle(idle);
+        player.setX(x);
+        player.setY(y);
+        PlatformHelper.run(player::setDirectionAnimation);
         //PlatformHelper.run(() -> players.get(index).updateVisuals());
-        System.out.println("accepting move packet, moving to x: " + x + " y: " + y);
+        System.out.println("accepting move packet, moving to x: " + x + " y: " + y + " direction (1 = left) : " + direction + " idle (1 = idle)" + idle);
     }
 
     private int getPlayerMPIndex(String username) {
         int index = 0;
-        for (PlayerMP playerMP: players){
+        for (PlayerMP playerMP: getPlayers()){
             if (playerMP.getUsername().equals(username)){
                 break;
             }
@@ -55,4 +68,9 @@ public class Game {
         return index;
     }
 
+    public void removePlayer(String username) {
+        int index = getPlayerMPIndex(username);
+        getPlayers().get(index).remove(gameController);
+        getPlayers().remove(index);
+    }
 }

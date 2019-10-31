@@ -1,22 +1,18 @@
 package org.openjfx.Controllers;
 
-import javafx.animation.AnimationTimer;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.stage.*;
-import org.openjfx.Exceptions.CannotFindHostException;
-import org.openjfx.Packets.Packet01Disconnect;
-import org.openjfx.Packets.Packet03ValidationLogin;
+import javafx.scene.layout.AnchorPane;
+import org.openjfx.Packets.Packet11Disconnect;
+import org.openjfx.Popup;
 
-import java.io.IOException;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
 
 public class FXMLController {
 
@@ -28,22 +24,29 @@ public class FXMLController {
     TextField usernameTextField;
     @FXML
     PasswordField passwordField;
+    @FXML
+    AnchorPane mainAnchorpane;
     public static String usernameText, passwordText;
     public static FXMLController controller;
     private GameClient socketClient;
     private GameServer socketServer;
-
+    double x, y;
+    double finalX, finalY;
     public void initialize() {
         controller = this;
+        launchClient();
     }
-
     @FXML
     private void logIn(ActionEvent event) {
+        x = mainAnchorpane.localToScreen(mainAnchorpane.getLayoutBounds()).getCenterX();
+        y = mainAnchorpane.localToScreen(mainAnchorpane.getLayoutBounds()).getCenterY();
+        finalX = x - (mainAnchorpane.getWidth()/2);
+        finalY = y - (mainAnchorpane.getHeight()/2);
         if (!checkValidUsernamePass()){
-            new Popup("No valid username / password");
+            new Popup("No valid username / password",finalX,finalY);
         }
         else {
-            launchClient();
+            socketClient.login(usernameTextField.getText(), passwordField.getText());
         }
     }
 
@@ -53,27 +56,19 @@ public class FXMLController {
         return ((usernameText != null && usernameText.length() > 0) && (passwordText != null && passwordText.length() > 0));
     }
 
-    @FXML
-    private void exit(ActionEvent event) { //Blir tilkalt ved exit knappen, navn her fungerer ikke. Bør være finne ID til personen innlogget, og sende den packeten istedenfor.
-        Packet01Disconnect packet = new Packet01Disconnect("");
-        packet.writeData(this.socketClient);
-    }
-
     private void launchClient(){
         label.setText("Client");
-        socketClient = new GameClient(this,"localhost", usernameTextField.getText(), passwordField.getText());
-        //Packet03ValidationLogin packet03ValidationLogin = new Packet03ValidationLogin(usernameTextField.getText(), passwordField.getText());
-        //Nå må vi motta godkjennelse fra serveren før vi fortsetter her
-        //packet03ValidationLogin.writeData(socketClient);
-        //try {
-        //    socketClient.receiveResponseFromServer();
-        //} catch (CannotFindHostException e) {
-        //    new Popup(e.getMessage());
-        //}
+        try {
+            socketClient = new GameClient(this,"localhost");
+        } catch (UnknownHostException | SocketException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
     private void launchServer(ActionEvent event) {
+        socketClient.serverIsAlive = false;
+        socketClient = null;
         label.setText("Server");
         //clientButton.setDisable(true);
         serverButton.setDisable(true);
@@ -83,10 +78,18 @@ public class FXMLController {
 
     @FXML
     public void createAccount(ActionEvent event){
-        System.out.println("Lager ny bruker nå med brukernavn: " + usernameTextField.getText() + " og passord: " + passwordField.getText());
-        SQLite sqLite = new SQLite();
-        sqLite.addUser(usernameTextField.getText(), passwordField.getText());
+        if (!checkValidUsernamePass()){
+            new Popup("No valid username / password");
+        } else {
+            if (socketClient != null)
+                socketClient.createAccount(usernameTextField.getText(), passwordField.getText());
+            else {
+                SQLite sqLite = new SQLite();
+                sqLite.addUser(usernameTextField.getText(), passwordField.getText());
+            }
+        }
     }
+
     @FXML
     public void displayUsers(ActionEvent event){
         System.out.println("DISPLAYING ALL USERS!");

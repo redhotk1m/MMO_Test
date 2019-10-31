@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Slider?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.shape.Circle?>
 
-<AnchorPane id="AnchorPane" fx:id="anchorPane" prefHeight="413.0" prefWidth="435.0" xmlns="http://javafx.com/javafx/8.0.172-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.openjfx.Controllers.GameController">
+<AnchorPane id="AnchorPane" fx:id="anchorPane" prefHeight="413.0" prefWidth="435.0" style="-fx-background-image: url('org/openjfx/s4m_ur4i-bg_clouds.png');" xmlns="http://javafx.com/javafx/9.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.openjfx.Controllers.GameController">
     <children>
+      <Slider fx:id="speedHackSlider" blockIncrement="1.0" layoutX="176.0" layoutY="343.0" majorTickUnit="1.0" max="6.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="4.0" />
       <Circle fx:id="ball2" fill="DODGERBLUE" layoutX="50.0" layoutY="50.0" radius="10.0" stroke="BLACK" strokeType="INSIDE" />
-      <Button fx:id="right" layoutX="34.0" layoutY="337.0" mnemonicParsing="false" onAction="#moveRight" text="Button" />
+      <Button fx:id="HackSpeedTest" layoutX="34.0" layoutY="337.0" mnemonicParsing="false" text="Test speedHack" />
     </children>
 </AnchorPane>

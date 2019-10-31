@@ -22,6 +22,7 @@ public class ChangeScene<T> {
             stage.setScene(scene);
             stage.setTitle("GAME");
             stage.show();
+            //PlatformHelper.run(() -> { });
         } catch (IOException e) {
             e.printStackTrace();
         }

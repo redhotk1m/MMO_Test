@@ -1,19 +1,21 @@
 package org.openjfx.Controllers;
 
 import javafx.animation.AnimationTimer;
-import javafx.event.EventHandler;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Slider;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
+import org.openjfx.Packets.Packet11Disconnect;
 import org.openjfx.PlayerMP;
-
-import java.util.ArrayList;
 
 public class GameController {
 
@@ -22,6 +24,8 @@ public class GameController {
     GameClient socketClient;
     @FXML
     AnchorPane anchorPane;
+    @FXML
+    Slider speedHackSlider;
     Game game;
     Stage stage;
     Scene scene;
@@ -29,18 +33,21 @@ public class GameController {
         return anchorPane;
     }
 
-    public static ArrayList<GameController> a = new ArrayList<>();
+    //public static ArrayList<GameController> a = new ArrayList<>();
     @FXML
     Button right;
     public void initialize(){
         //gameLoop.start();
-        this.game = new Game(this,socketClient);
+        //this.game = new Game(this,socketClient);
         //PlayerMP playerMP = new PlayerMP()
-        a.add(this);
-
+        //a.add(this);
+        speedHackSlider.valueProperty().addListener(new ChangeListener<Number>() {
+            @Override
+            public void changed(ObservableValue<? extends Number> observableValue, Number number, Number t1) {
+                game.mainPlayer.setSpeed(t1);
+            }
+        });
     }
-
-
 
     @FXML
     Circle ball2;
@@ -112,10 +119,17 @@ public class GameController {
     public void setStage(Stage stage){
         this.stage = stage;
         this.scene = stage.getScene();
+        stage.setOnCloseRequest(windowEvent -> sendDisconnectPacket());
         setListeners();
     }
 
-    public void addNode(Node... node){
-        this.anchorPane.getChildren().addAll(node);
+    private void sendDisconnectPacket(){
+        Packet11Disconnect packet = new Packet11Disconnect(Game.game.mainPlayer.getUsername());
+        packet.writeData(Game.game.socketClient);
+        System.exit(0);
+    }
+
+    public void startGame() {
+        this.game = new Game(this,socketClient);
     }
 }

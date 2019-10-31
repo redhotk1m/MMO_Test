@@ -2,6 +2,7 @@ package org.openjfx.Controllers;
 
 import org.openjfx.PlayerMP;
 
+import java.net.InetAddress;
 import java.sql.*;
 
 public class SQLite {
@@ -51,9 +52,12 @@ public class SQLite {
         if (!res.next()){
             System.out.println("CREATING THE DATABASE");
             Statement state2 = con.createStatement();
-            state2.execute("CREATE TABLE UserDB(uname varchar(60),"
-                            + "passwd varchar(60)," + "player_x integer," + "player_y integer,"
-                    + "primary key(uname));");
+            state2.execute("CREATE TABLE UserDB(" +
+                    "uname varchar(60) NOT NULL," +
+                    "passwd varchar(60) NOT NULL," +
+                    "player_x integer NOT NULL default 50," +
+                    "player_y integer NOT NULL default 50," +
+                    "primary key(uname));");
         }
     }
 
@@ -62,11 +66,9 @@ public class SQLite {
             getConnection();
         }
         try {
-            PreparedStatement prep = con.prepareStatement("INSERT OR IGNORE INTO UserDB values(?,?,?,?); ");
+            PreparedStatement prep = con.prepareStatement("INSERT OR IGNORE INTO UserDB (uname,passwd) values(?,?); ");
             prep.setString(1,username);
             prep.setString(2,password);
-            prep.setInt(3,50);
-            prep.setInt(4,35);
             prep.execute();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -82,6 +84,7 @@ public class SQLite {
         try {
             String SQL = "SELECT uname, passwd FROM UserDB WHERE uname = " + "\"" +username + "\"" + " AND passwd = " + "\"" + password + "\"";
             System.out.println(SQL);
+            System.out.println("Heisann gutta! ------------------");
             PreparedStatement prep = con.prepareStatement(SQL);
             rs = prep.executeQuery();
 
@@ -94,7 +97,7 @@ public class SQLite {
         return queryResult != null && queryResult.equals(username+password);
     }
 
-    public PlayerMP loadUser(String username){
+    public PlayerMP loadUser(String username, InetAddress address, int port){
         if (con == null){
             getConnection();
         }
@@ -102,7 +105,7 @@ public class SQLite {
         int player_x = 0;
         int player_y = 0;
         try {
-            String SQL = "SELECT uname, player_x, player_y FROM UserDB WHERE uname = " + "\"" +username + "\"";
+            String SQL = "SELECT uname, player_x, player_y FROM UserDB WHERE uname = " + "\"" + username + "\"";
             System.out.println(SQL);
             PreparedStatement prep = con.prepareStatement(SQL);
             rs = prep.executeQuery();
@@ -114,6 +117,31 @@ public class SQLite {
         }catch (SQLException e){
             e.printStackTrace();
         }
-        return new PlayerMP(username,player_x,player_y,null,0);
+        return new PlayerMP(username,player_x,player_y,address,port);
+    }
+
+    public boolean userExists(String username){
+        if (con == null){
+            getConnection();
+        }
+        System.out.println("user exists brukes med brukernavn: " + username);
+        ResultSet rs;
+        String usernameDB = null;
+
+        try {
+            String SQL = "SELECT uname FROM UserDB WHERE uname = " + "\"" + username + "\"";
+            System.out.println(SQL + "\n" + SQL);
+            PreparedStatement prep = con.prepareStatement(SQL);
+            rs = prep.executeQuery();
+            while (rs.next()){
+                usernameDB = rs.getString("uname");
+                System.out.println("Dette er userDB " + usernameDB);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        System.out.println(usernameDB != null);
+        System.out.println("Forrige statement er true hvis brukeren eksisterer fra før, hvis ikke er den false");
+        return usernameDB != null;
     }
 }
