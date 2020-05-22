@@ -18,6 +18,7 @@ I read up on how big corporations setup their servers, and used Steam as an exam
  You can read more about that here: https://www.gabrielgambetta.com/client-server-game-architecture.html
 # TODO
 I wanted to learn, therefore i don't want to use libraries such as "RUDP" which fixes my Reliable UDP problem. I'm trying to create RUDP on my own, in a seperate project.
+- Implement selfmade RUDP
 - Adding support for changing Port and IP in the client
 # How to use
 1. Run the application, and start up the server. This uses LocalHost with 1337 as the port number. If you want to change IP, change serverHost to your public IP. It's in openjfx\Controllers\FXMLController.java line 18.
