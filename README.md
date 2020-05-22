@@ -1,7 +1,7 @@
 # MMO_Test
 Private project where i try to create the basis for an MMO. The concept is big, and it's only done for learning purposes. Will update project when i have time, and fixed packet loss handling (Another project).
 # About this project
-I wanted to create an MMO, and to understand how this works. I'm experienced with JavaFX, so i used this as my GUI, and added JavaFX11 to Java11 with Maven.
+I wanted to create an MMO, so i could understand how they worked. I'm experienced with JavaFX, so i used this as my GUI, and added JavaFX11 to Java11 with Maven.
 I read up on how big corporations setup their servers, and used Steam as an example. (Counter Strike Global Offensive, Left 4 Dead, and etc).
 # What i learned
 - Threads
