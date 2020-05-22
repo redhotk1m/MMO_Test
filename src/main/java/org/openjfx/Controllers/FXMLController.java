@@ -15,7 +15,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 
 public class FXMLController {
-
+    private final String serverHost = "localhost"; //IP Of server host, change to public IP.  Remember to open up port
     @FXML
     private Label label;
     @FXML
@@ -59,7 +59,7 @@ public class FXMLController {
     private void launchClient(){
         label.setText("Client");
         try {
-            socketClient = new GameClient(this,"localhost");
+            socketClient = new GameClient(this,serverHost);
         } catch (UnknownHostException | SocketException e) {
             e.printStackTrace();
         }

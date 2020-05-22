@@ -62,6 +62,7 @@ public class GameServer extends Thread {
             byte[] data = new byte[1024];
             DatagramPacket packet = new DatagramPacket(data, data.length);
             try {
+                System.out.println("Avventer pakke");
                 socket.receive(packet);
             } catch (IOException e) {
                 e.printStackTrace();
